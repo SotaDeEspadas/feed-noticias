@@ -1,0 +1,5 @@
+google-genai
+beautifulsoup4
+httpx
+feedparser
+python-dotenv
