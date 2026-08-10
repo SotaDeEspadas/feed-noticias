@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  feed-noticias:
+    build: .
+    ports:
+      - "80:8501"
+    environment:
+      - GEMINI_API_KEY=AIzaSyCZkuWaXN2Br2DOHQwKzMaUA4V7hgUqXhQ
+    restart: always
