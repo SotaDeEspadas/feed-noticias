@@ -3,3 +3,5 @@ beautifulsoup4
 httpx
 feedparser
 python-dotenv
+streamlit
+pandas
