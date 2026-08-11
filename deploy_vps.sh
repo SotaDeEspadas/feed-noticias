@@ -52,7 +52,13 @@ sudo systemctl daemon-reload
 sudo systemctl enable feed-noticias
 sudo systemctl restart feed-noticias
 
-# 8. Configurar Nginx Reverse Proxy
+# 8. Liberar puertos 80 y 443 si están ocupados por plantillas previas (Docker/n8n/caddy/apache)
+echo "🧹 Liberando puertos 80 y 443..."
+sudo docker stop $(sudo docker ps -q) 2>/dev/null || true
+sudo systemctl stop apache2 2>/dev/null || true
+sudo systemctl stop caddy 2>/dev/null || true
+
+# 9. Configurar Nginx Reverse Proxy
 sudo cat << 'EOF' | sudo tee /etc/nginx/sites-available/feed-noticias
 server {
     listen 80;
@@ -74,17 +80,14 @@ EOF
 sudo ln -sf /etc/nginx/sites-available/feed-noticias /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 
-if sudo nginx -t; then
-    sudo systemctl restart nginx
-    sudo certbot --nginx -d srv1817339.hstgr.cloud --register-unsafely-without-email --non-interactive --agree-tos || true
-else
-    echo "⚠️ Advertencia: Nginx reportó un conflicto con otra configuración (como n8n)."
-    echo "💡 Puedes acceder directamente a la app por el puerto 8501: http://152.239.123.174:8501"
-fi
+sudo nginx -t
+sudo systemctl restart nginx
+
+# 10. Generar Certificado SSL HTTPS Gratis (Let's Encrypt)
+echo "🔒 Generando Certificado SSL HTTPS (🔒 Conexión Segura)..."
+sudo certbot --nginx -d srv1817339.hstgr.cloud --register-unsafely-without-email --non-interactive --agree-tos --redirect || true
 
 echo "--------------------------------------------------------"
-echo "✅ ¡DESPLIEGUE FINALIZADO CON ÉXITO!"
-echo "🌐 Acceso Directo 24/7 (Sin Nginx): http://152.239.123.174:8501"
-echo "🌐 Acceso HTTP Nginx (Puerto 80):  http://152.239.123.174"
-echo "🔒 Acceso HTTPS Seguro:             https://srv1817339.hstgr.cloud"
+echo "✅ ¡DESPLIEGUE HTTPS FINALIZADO CON ÉXITO!"
+echo "🔒 Acceso HTTPS SEGURO (Recomendado): https://srv1817339.hstgr.cloud"
 echo "--------------------------------------------------------"
