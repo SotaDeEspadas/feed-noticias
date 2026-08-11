@@ -56,7 +56,7 @@ sudo systemctl restart feed-noticias
 sudo cat << 'EOF' | sudo tee /etc/nginx/sites-available/feed-noticias
 server {
     listen 80;
-    server_name srv1817339.hstgr.cloud 152.239.123.174;
+    server_name srv1817339.hstgr.cloud 152.239.123.174 _;
 
     location / {
         proxy_pass http://127.0.0.1:8501;
@@ -73,14 +73,18 @@ EOF
 
 sudo ln -sf /etc/nginx/sites-available/feed-noticias /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
-sudo nginx -t
-sudo systemctl restart nginx
 
-# 9. Generar SSL HTTPS gratis con Certbot
-sudo certbot --nginx -d srv1817339.hstgr.cloud --register-unsafely-without-email --non-interactive --agree-tos || true
+if sudo nginx -t; then
+    sudo systemctl restart nginx
+    sudo certbot --nginx -d srv1817339.hstgr.cloud --register-unsafely-without-email --non-interactive --agree-tos || true
+else
+    echo "⚠️ Advertencia: Nginx reportó un conflicto con otra configuración (como n8n)."
+    echo "💡 Puedes acceder directamente a la app por el puerto 8501: http://152.239.123.174:8501"
+fi
 
 echo "--------------------------------------------------------"
 echo "✅ ¡DESPLIEGUE FINALIZADO CON ÉXITO!"
-echo "🌐 Acceso HTTP Directo:  http://152.239.123.174"
-echo "🔒 Acceso HTTPS Seguro:   https://srv1817339.hstgr.cloud"
+echo "🌐 Acceso Directo 24/7 (Sin Nginx): http://152.239.123.174:8501"
+echo "🌐 Acceso HTTP Nginx (Puerto 80):  http://152.239.123.174"
+echo "🔒 Acceso HTTPS Seguro:             https://srv1817339.hstgr.cloud"
 echo "--------------------------------------------------------"
