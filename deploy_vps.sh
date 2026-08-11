@@ -52,22 +52,9 @@ sudo systemctl daemon-reload
 sudo systemctl enable feed-noticias
 sudo systemctl restart feed-noticias
 
-# 8. Liberar puertos 80 y 443 de Docker (n8n/Traefik) para asignarlos a Nginx
-echo "🧹 Reconfigurando n8n para liberar el puerto 80/443 y mantenerlo en el puerto 5678..."
-
-# Si existe un docker-compose de n8n en el VPS, ajustamos sus puertos para que no ocupe 80/443
-for compose_path in /root/n8n/docker-compose.yml /root/docker-compose.yml /opt/n8n/docker-compose.yml; do
-    if [ -f "$compose_path" ]; then
-        echo "📝 Ajustando puertos en $compose_path..."
-        sudo sed -i 's/"80:5678"/"5678:5678"/g' "$compose_path" 2>/dev/null || true
-        sudo sed -i 's/"80:80"/"5678:80"/g' "$compose_path" 2>/dev/null || true
-        sudo sed -i 's/"443:443"/"5443:443"/g' "$compose_path" 2>/dev/null || true
-        (cd "$(dirname "$compose_path")" && sudo docker compose down 2>/dev/null || sudo docker-compose down 2>/dev/null || true)
-        (cd "$(dirname "$compose_path")" && sudo docker compose up -d 2>/dev/null || sudo docker-compose up -d 2>/dev/null || true)
-    fi
-done
-
-# Detener cualquier contenedor Docker suelto que siga usando el puerto 80 o 443
+# 8. Liberar puertos 80 y 443 deshabilitando auto-reinicios de Traefik/Docker
+echo "🧹 Liberando puertos 80 y 443 de Traefik/Docker..."
+sudo docker update --restart=no $(sudo docker ps -q) 2>/dev/null || true
 sudo docker stop $(sudo docker ps -q) 2>/dev/null || true
 sudo systemctl stop apache2 2>/dev/null || true
 sudo systemctl stop caddy 2>/dev/null || true
