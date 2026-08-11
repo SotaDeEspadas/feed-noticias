@@ -29,7 +29,7 @@ cat << 'EOF' > /var/www/feed-noticias/.env
 GEMINI_API_KEY=AIzaSyCZkuWaXN2Br2DOHQwKzMaUA4V7hgUqXhQ
 EOF
 
-# 6. Crear Servicio de Sistema (systemd) para que Streamlit ejecute 24/7
+# 6. Crear Servicio de Sistema (systemd) para que Streamlit ejecute en puerto 8502 24/7
 sudo cat << 'EOF' | sudo tee /etc/systemd/system/feed-noticias.service
 [Unit]
 Description=Streamlit Feed Noticias App
@@ -38,7 +38,7 @@ After=network.target
 [Service]
 User=root
 WorkingDirectory=/var/www/feed-noticias
-ExecStart=/var/www/feed-noticias/venv/bin/streamlit run /var/www/feed-noticias/frontend/app.py --server.port 8501 --server.address 0.0.0.0 --server.headless true
+ExecStart=/var/www/feed-noticias/venv/bin/streamlit run /var/www/feed-noticias/frontend/app.py --server.port 8502 --server.address 0.0.0.0 --server.headless true
 Restart=always
 RestartSec=5
 Environment="PYTHONPATH=/var/www/feed-noticias"
@@ -52,14 +52,14 @@ sudo systemctl daemon-reload
 sudo systemctl enable feed-noticias
 sudo systemctl restart feed-noticias
 
-# 8. Generar Túnel SSH HTTPS Seguro y Permanente con localhost.run (coste 0€, sin cortafuegos)
+# 8. Generar Túnel SSH HTTPS Seguro en puerto 8502
 sudo cat << 'EOF' | sudo tee /etc/systemd/system/secure-tunnel.service
 [Unit]
 Description=Túnel HTTPS Seguro 24/7 para Feed Noticias
 After=network.target feed-noticias.service
 
 [Service]
-ExecStart=/usr/bin/ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -R 80:127.0.0.1:8501 nokey@localhost.run
+ExecStart=/usr/bin/ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -R 80:127.0.0.1:8502 nokey@localhost.run
 Restart=always
 RestartSec=5
 
