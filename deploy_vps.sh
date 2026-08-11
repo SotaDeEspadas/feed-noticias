@@ -62,14 +62,14 @@ fi
 
 CLOUDFLARED_PATH=$(which cloudflared || echo "/usr/bin/cloudflared")
 
-# 9. Crear servicio de túnel seguro 24/7 con Cloudflare
+# 9. Crear servicio de túnel seguro 24/7 con Cloudflare (forzando TCP/http2 para evitar bloqueos UDP de firewall)
 sudo cat << EOF | sudo tee /etc/systemd/system/cloudflared-tunnel.service
 [Unit]
 Description=Cloudflare Tunnel HTTPS 24/7 para Feed Noticias
 After=network.target feed-noticias.service
 
 [Service]
-ExecStart=${CLOUDFLARED_PATH} tunnel --url http://127.0.0.1:8501 --no-autoupdate
+ExecStart=${CLOUDFLARED_PATH} tunnel --protocol http2 --url http://127.0.0.1:8501 --no-autoupdate
 Restart=always
 RestartSec=5
 
