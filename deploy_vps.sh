@@ -60,14 +60,16 @@ if ! command -v cloudflared &> /dev/null; then
     rm -f /tmp/cloudflared.deb
 fi
 
+CLOUDFLARED_PATH=$(which cloudflared || echo "/usr/bin/cloudflared")
+
 # 9. Crear servicio de túnel seguro 24/7 con Cloudflare
-sudo cat << 'EOF' | sudo tee /etc/systemd/system/cloudflared-tunnel.service
+sudo cat << EOF | sudo tee /etc/systemd/system/cloudflared-tunnel.service
 [Unit]
 Description=Cloudflare Tunnel HTTPS 24/7 para Feed Noticias
 After=network.target feed-noticias.service
 
 [Service]
-ExecStart=/usr/bin/cloudflared tunnel --url http://127.0.0.1:8501
+ExecStart=${CLOUDFLARED_PATH} tunnel --url http://127.0.0.1:8501 --no-autoupdate
 Restart=always
 RestartSec=5
 
