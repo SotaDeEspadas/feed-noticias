@@ -3,8 +3,15 @@ version: '3.8'
 services:
   feed-noticias:
     build: .
+    container_name: feed-noticias
+    restart: always
     ports:
-      - "80:8501"
+      - "8501:8501"
     environment:
       - GEMINI_API_KEY=AIzaSyCZkuWaXN2Br2DOHQwKzMaUA4V7hgUqXhQ
-    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.feed-noticias.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.feed-noticias.entrypoints=web,websecure"
+      - "traefik.http.services.feed-noticias.loadbalancer.server.port=8501"
+

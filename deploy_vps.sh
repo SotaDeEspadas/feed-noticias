@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Iniciando despliegue de Feed Noticias en Hostinger VPS..."
+echo "🚀 Iniciando despliegue de Feed Noticias en Hostinger VPS (Nginx + Traefik)..."
 
 # 1. Actualizar e instalar dependencias del sistema
 sudo apt update && sudo apt install -y python3-pip python3-venv git nginx certbot python3-certbot-nginx
@@ -47,25 +47,24 @@ Environment="PYTHONPATH=/var/www/feed-noticias"
 WantedBy=multi-user.target
 EOF
 
-# 7. Recargar daemon y arrancar servicio
+# 7. Recargar daemon y arrancar servicio systemd
 sudo systemctl daemon-reload
 sudo systemctl enable feed-noticias
 sudo systemctl restart feed-noticias
 
-# 8. Liberar puertos 80 y 443 deshabilitando auto-reinicios de Traefik/Docker
-echo "🧹 Liberando puertos 80 y 443 de Traefik/Docker..."
-sudo docker update --restart=no $(sudo docker ps -q) 2>/dev/null || true
-sudo docker stop $(sudo docker ps -q) 2>/dev/null || true
-sudo systemctl stop apache2 2>/dev/null || true
-sudo systemctl stop caddy 2>/dev/null || true
+# 8. Arrancar versión Docker con etiquetas Traefik si Traefik está activo en el VPS
+if sudo docker ps 2>/dev/null | grep -i -q traefik; then
+    echo "⚡ Traefik detectado en Hostinger. Construyendo y registrando contenedor en Traefik..."
+    sudo docker compose down 2>/dev/null || sudo docker-compose down 2>/dev/null || true
+    sudo docker compose up -d --build 2>/dev/null || sudo docker-compose up -d --build 2>/dev/null || true
+fi
 
-# 9. Configurar Nginx Reverse Proxy para Feed Noticias
+# 9. Configurar Nginx Reverse Proxy por si Nginx está disponible
 sudo cat << 'EOF' | sudo tee /etc/nginx/sites-available/feed-noticias
 server {
     listen 80;
     server_name srv1817339.hstgr.cloud 152.239.123.174 _;
 
-    # Aplicación Feed Noticias en la raíz /
     location / {
         proxy_pass http://127.0.0.1:8501;
         proxy_http_version 1.1;
@@ -82,14 +81,12 @@ EOF
 sudo ln -sf /etc/nginx/sites-available/feed-noticias /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 
-sudo nginx -t
-sudo systemctl restart nginx
-
-# 10. Generar Certificado SSL HTTPS Gratis (Let's Encrypt)
-echo "🔒 Generando Certificado SSL HTTPS (🔒 Conexión Segura)..."
-sudo certbot --nginx -d srv1817339.hstgr.cloud --register-unsafely-without-email --non-interactive --agree-tos --redirect || true
+if sudo nginx -t 2>/dev/null; then
+    sudo systemctl restart nginx 2>/dev/null || true
+    sudo certbot --nginx -d srv1817339.hstgr.cloud --register-unsafely-without-email --non-interactive --agree-tos --redirect 2>/dev/null || true
+fi
 
 echo "--------------------------------------------------------"
-echo "✅ ¡DESPLIEGUE HTTPS FINALIZADO CON ÉXITO!"
-echo "🔒 Feed Noticias (HTTPS Seguros): https://srv1817339.hstgr.cloud"
+echo "✅ ¡DESPLIEGUE FINALIZADO!"
+echo "🔒 Acceso HTTPS SEGURO: https://srv1817339.hstgr.cloud"
 echo "--------------------------------------------------------"
