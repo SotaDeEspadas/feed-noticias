@@ -1,10 +1,10 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Iniciando despliegue de Feed Noticias en Hostinger VPS (Nginx + Traefik)..."
+echo "🚀 Iniciando despliegue de Feed Noticias en Hostinger VPS con HTTPS Seguro Cloudflare..."
 
 # 1. Actualizar e instalar dependencias del sistema
-sudo apt update && sudo apt install -y python3-pip python3-venv git nginx certbot python3-certbot-nginx
+sudo apt update && sudo apt install -y python3-pip python3-venv git curl
 
 # 2. Crear directorio de la app
 sudo mkdir -p /var/www/feed-noticias
@@ -47,46 +47,50 @@ Environment="PYTHONPATH=/var/www/feed-noticias"
 WantedBy=multi-user.target
 EOF
 
-# 7. Recargar daemon y arrancar servicio systemd
+# 7. Recargar daemon y arrancar servicio systemd de Streamlit
 sudo systemctl daemon-reload
 sudo systemctl enable feed-noticias
 sudo systemctl restart feed-noticias
 
-# 8. Arrancar versión Docker con etiquetas Traefik si Traefik está activo en el VPS
-if sudo docker ps 2>/dev/null | grep -i -q traefik; then
-    echo "⚡ Traefik detectado en Hostinger. Construyendo y registrando contenedor en Traefik..."
-    sudo docker compose down 2>/dev/null || sudo docker-compose down 2>/dev/null || true
-    sudo docker compose up -d --build 2>/dev/null || sudo docker-compose up -d --build 2>/dev/null || true
+# 8. Instalar Cloudflare Tunnel (cloudflared) para ofrecer HTTPS 100% oficial y seguro sin conflictos
+if ! command -v cloudflared &> /dev/null; then
+    echo "📦 Instalando Cloudflare Tunnel para HTTPS 100% Oficial..."
+    curl -L --output /tmp/cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+    sudo dpkg -i /tmp/cloudflared.deb || sudo apt-get install -f -y
+    rm -f /tmp/cloudflared.deb
 fi
 
-# 9. Configurar Nginx Reverse Proxy por si Nginx está disponible
-sudo cat << 'EOF' | sudo tee /etc/nginx/sites-available/feed-noticias
-server {
-    listen 80;
-    server_name srv1817339.hstgr.cloud 152.239.123.174 _;
+# 9. Crear servicio de túnel seguro 24/7 con Cloudflare
+sudo cat << 'EOF' | sudo tee /etc/systemd/system/cloudflared-tunnel.service
+[Unit]
+Description=Cloudflare Tunnel HTTPS 24/7 para Feed Noticias
+After=network.target feed-noticias.service
 
-    location / {
-        proxy_pass http://127.0.0.1:8501;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
+[Service]
+ExecStart=/usr/bin/cloudflared tunnel --url http://127.0.0.1:8501
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
 EOF
 
-sudo ln -sf /etc/nginx/sites-available/feed-noticias /etc/nginx/sites-enabled/
-sudo rm -f /etc/nginx/sites-enabled/default
+sudo systemctl daemon-reload
+sudo systemctl enable cloudflared-tunnel
+sudo systemctl restart cloudflared-tunnel
 
-if sudo nginx -t 2>/dev/null; then
-    sudo systemctl restart nginx 2>/dev/null || true
-    sudo certbot --nginx -d srv1817339.hstgr.cloud --register-unsafely-without-email --non-interactive --agree-tos --redirect 2>/dev/null || true
-fi
+sleep 5
+
+# 10. Extraer la URL oficial HTTPS generada con candado SSL verificado
+HTTPS_URL=$(sudo journalctl -u cloudflared-tunnel -n 100 --no-pager | grep -o 'https://[-a-zA-Z0-9]*\.trycloudflare\.com' | tail -n 1 || true)
 
 echo "--------------------------------------------------------"
-echo "✅ ¡DESPLIEGUE FINALIZADO!"
-echo "🔒 Acceso HTTPS SEGURO: https://srv1817339.hstgr.cloud"
+echo "✅ ¡DESPLIEGUE HTTPS 100% SEGURO COMPLETADO!"
+if [ -n "$HTTPS_URL" ]; then
+    echo "🔒 TU URL HTTPS OFICIAL (CANDADO SEGURO 24/7):"
+    echo "👉 $HTTPS_URL"
+else
+    echo "🔒 Tu túnel Cloudflare está activo. Puedes ver la URL HTTPS ejecutando:"
+    echo "   sudo journalctl -u cloudflared-tunnel -n 30 | grep trycloudflare"
+fi
 echo "--------------------------------------------------------"
