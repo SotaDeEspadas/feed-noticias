@@ -52,18 +52,18 @@ sudo systemctl daemon-reload
 sudo systemctl enable feed-noticias
 sudo systemctl restart feed-noticias
 
-# 8. Liberar puertos 80 y 443 si están ocupados por plantillas previas (Docker/n8n/caddy/apache)
+# 8. Liberar puertos 80 y 443 de servicios web conflictivos si los hay
 echo "🧹 Liberando puertos 80 y 443..."
-sudo docker stop $(sudo docker ps -q) 2>/dev/null || true
 sudo systemctl stop apache2 2>/dev/null || true
 sudo systemctl stop caddy 2>/dev/null || true
 
-# 9. Configurar Nginx Reverse Proxy
+# 9. Configurar Nginx Reverse Proxy para Feed Noticias
 sudo cat << 'EOF' | sudo tee /etc/nginx/sites-available/feed-noticias
 server {
     listen 80;
     server_name srv1817339.hstgr.cloud 152.239.123.174 _;
 
+    # Aplicación Feed Noticias
     location / {
         proxy_pass http://127.0.0.1:8501;
         proxy_http_version 1.1;
@@ -87,7 +87,12 @@ sudo systemctl restart nginx
 echo "🔒 Generando Certificado SSL HTTPS (🔒 Conexión Segura)..."
 sudo certbot --nginx -d srv1817339.hstgr.cloud --register-unsafely-without-email --non-interactive --agree-tos --redirect || true
 
+# 11. Reactivar contenedores Docker de n8n en segundo plano si estaban detenidos
+echo "⚡ Verificando y reactivando contenedores n8n..."
+sudo docker start $(sudo docker ps -a -q) 2>/dev/null || true
+
 echo "--------------------------------------------------------"
 echo "✅ ¡DESPLIEGUE HTTPS FINALIZADO CON ÉXITO!"
-echo "🔒 Acceso HTTPS SEGURO (Recomendado): https://srv1817339.hstgr.cloud"
+echo "🔒 Feed Noticias (HTTPS Seguros): https://srv1817339.hstgr.cloud"
+echo "⚙️ n8n (Puerto 5678 habitual):   http://152.239.123.174:5678"
 echo "--------------------------------------------------------"
