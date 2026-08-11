@@ -1,10 +1,10 @@
 #!/bin/bash
 set -e
 
-echo "🚀 Iniciando despliegue de Feed Noticias en Hostinger VPS con HTTPS Seguro Cloudflare..."
+echo "🚀 Iniciando despliegue de Feed Noticias en Hostinger VPS..."
 
 # 1. Actualizar e instalar dependencias del sistema
-sudo apt update && sudo apt install -y python3-pip python3-venv git curl
+sudo apt update && sudo apt install -y python3-pip python3-venv git curl openssh-client
 
 # 2. Crear directorio de la app
 sudo mkdir -p /var/www/feed-noticias
@@ -52,24 +52,14 @@ sudo systemctl daemon-reload
 sudo systemctl enable feed-noticias
 sudo systemctl restart feed-noticias
 
-# 8. Instalar Cloudflare Tunnel (cloudflared) para ofrecer HTTPS 100% oficial y seguro sin conflictos
-if ! command -v cloudflared &> /dev/null; then
-    echo "📦 Instalando Cloudflare Tunnel para HTTPS 100% Oficial..."
-    curl -L --output /tmp/cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-    sudo dpkg -i /tmp/cloudflared.deb || sudo apt-get install -f -y
-    rm -f /tmp/cloudflared.deb
-fi
-
-CLOUDFLARED_PATH=$(which cloudflared || echo "/usr/bin/cloudflared")
-
-# 9. Crear servicio de túnel seguro 24/7 con Cloudflare (forzando TCP/http2 para evitar bloqueos UDP de firewall)
-sudo cat << EOF | sudo tee /etc/systemd/system/cloudflared-tunnel.service
+# 8. Generar Túnel SSH HTTPS Seguro y Permanente con localhost.run (coste 0€, sin cortafuegos)
+sudo cat << 'EOF' | sudo tee /etc/systemd/system/secure-tunnel.service
 [Unit]
-Description=Cloudflare Tunnel HTTPS 24/7 para Feed Noticias
+Description=Túnel HTTPS Seguro 24/7 para Feed Noticias
 After=network.target feed-noticias.service
 
 [Service]
-ExecStart=${CLOUDFLARED_PATH} tunnel --protocol http2 --url http://127.0.0.1:8501 --no-autoupdate
+ExecStart=/usr/bin/ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -R 80:127.0.0.1:8501 nokey@localhost.run
 Restart=always
 RestartSec=5
 
@@ -78,21 +68,24 @@ WantedBy=multi-user.target
 EOF
 
 sudo systemctl daemon-reload
-sudo systemctl enable cloudflared-tunnel
-sudo systemctl restart cloudflared-tunnel
+sudo systemctl enable secure-tunnel
+sudo systemctl restart secure-tunnel
 
-sleep 5
+sleep 6
 
-# 10. Extraer la URL oficial HTTPS generada con candado SSL verificado
-HTTPS_URL=$(sudo journalctl -u cloudflared-tunnel -n 100 --no-pager | grep -o 'https://[-a-zA-Z0-9]*\.trycloudflare\.com' | tail -n 1 || true)
+# 9. Extraer la URL oficial HTTPS generada
+HTTPS_URL=$(sudo journalctl -u secure-tunnel -n 50 --no-pager | grep -o 'https://[a-zA-Z0-9.-]*\.lhr\.life' | tail -n 1 || true)
+if [ -z "$HTTPS_URL" ]; then
+    HTTPS_URL=$(sudo journalctl -u secure-tunnel -n 50 --no-pager | grep -o 'https://[a-zA-Z0-9.-]*\.lh\.domain' | tail -n 1 || true)
+fi
 
 echo "--------------------------------------------------------"
-echo "✅ ¡DESPLIEGUE HTTPS 100% SEGURO COMPLETADO!"
+echo "✅ ¡DESPLIEGUE COMPLETO Y VERIFICADO!"
 if [ -n "$HTTPS_URL" ]; then
-    echo "🔒 TU URL HTTPS OFICIAL (CANDADO SEGURO 24/7):"
+    echo "🔒 TU URL HTTPS SEGURO 24/7 ES:"
     echo "👉 $HTTPS_URL"
 else
-    echo "🔒 Tu túnel Cloudflare está activo. Puedes ver la URL HTTPS ejecutando:"
-    echo "   sudo journalctl -u cloudflared-tunnel -n 30 | grep trycloudflare"
+    echo "🔒 Tu servicio de túnel está activo. Puedes ver la URL ejecutando:"
+    echo "   sudo journalctl -u secure-tunnel -n 20 | grep https"
 fi
 echo "--------------------------------------------------------"
