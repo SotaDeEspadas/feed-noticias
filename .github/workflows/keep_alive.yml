@@ -1,0 +1,15 @@
+name: Keep Streamlit App Awake 24/7
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Streamlit Cloud Production URL
+        run: |
+          STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://feed-noticias-ydjjjqwwgwjiywmadsru8j.streamlit.app/)
+          echo "Streamlit Cloud Ping Status: $STATUS_CODE at $(date)"
