@@ -52,8 +52,23 @@ sudo systemctl daemon-reload
 sudo systemctl enable feed-noticias
 sudo systemctl restart feed-noticias
 
-# 8. Liberar puertos 80 y 443 de servicios web conflictivos si los hay
-echo "🧹 Liberando puertos 80 y 443..."
+# 8. Liberar puertos 80 y 443 de Docker (n8n/Traefik) para asignarlos a Nginx
+echo "🧹 Reconfigurando n8n para liberar el puerto 80/443 y mantenerlo en el puerto 5678..."
+
+# Si existe un docker-compose de n8n en el VPS, ajustamos sus puertos para que no ocupe 80/443
+for compose_path in /root/n8n/docker-compose.yml /root/docker-compose.yml /opt/n8n/docker-compose.yml; do
+    if [ -f "$compose_path" ]; then
+        echo "📝 Ajustando puertos en $compose_path..."
+        sudo sed -i 's/"80:5678"/"5678:5678"/g' "$compose_path" 2>/dev/null || true
+        sudo sed -i 's/"80:80"/"5678:80"/g' "$compose_path" 2>/dev/null || true
+        sudo sed -i 's/"443:443"/"5443:443"/g' "$compose_path" 2>/dev/null || true
+        (cd "$(dirname "$compose_path")" && sudo docker compose down 2>/dev/null || sudo docker-compose down 2>/dev/null || true)
+        (cd "$(dirname "$compose_path")" && sudo docker compose up -d 2>/dev/null || sudo docker-compose up -d 2>/dev/null || true)
+    fi
+done
+
+# Detener cualquier contenedor Docker suelto que siga usando el puerto 80 o 443
+sudo docker stop $(sudo docker ps -q) 2>/dev/null || true
 sudo systemctl stop apache2 2>/dev/null || true
 sudo systemctl stop caddy 2>/dev/null || true
 
@@ -63,7 +78,7 @@ server {
     listen 80;
     server_name srv1817339.hstgr.cloud 152.239.123.174 _;
 
-    # Aplicación Feed Noticias
+    # Aplicación Feed Noticias en la raíz /
     location / {
         proxy_pass http://127.0.0.1:8501;
         proxy_http_version 1.1;
@@ -87,12 +102,7 @@ sudo systemctl restart nginx
 echo "🔒 Generando Certificado SSL HTTPS (🔒 Conexión Segura)..."
 sudo certbot --nginx -d srv1817339.hstgr.cloud --register-unsafely-without-email --non-interactive --agree-tos --redirect || true
 
-# 11. Reactivar contenedores Docker de n8n en segundo plano si estaban detenidos
-echo "⚡ Verificando y reactivando contenedores n8n..."
-sudo docker start $(sudo docker ps -a -q) 2>/dev/null || true
-
 echo "--------------------------------------------------------"
 echo "✅ ¡DESPLIEGUE HTTPS FINALIZADO CON ÉXITO!"
 echo "🔒 Feed Noticias (HTTPS Seguros): https://srv1817339.hstgr.cloud"
-echo "⚙️ n8n (Puerto 5678 habitual):   http://152.239.123.174:5678"
 echo "--------------------------------------------------------"
