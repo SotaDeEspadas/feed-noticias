@@ -32,8 +32,8 @@ pip install --upgrade pip
 pip install -r requirements.txt
 
 # 6. Configurar archivo de variables de entorno (.env)
-cat << 'EOF' > /var/www/feed-noticias/.env
-GEMINI_API_KEY=AIzaSyCZkuWaXN2Br2DOHQwKzMaUA4V7hgUqXhQ
+cat << EOF > /var/www/feed-noticias/.env
+GEMINI_API_KEY=${GEMINI_API_KEY:?Debes exportar GEMINI_API_KEY antes de ejecutar este script}
 EOF
 
 # 7. Crear Servicio de Sistema (systemd) para Feed Noticias en puerto 8502
