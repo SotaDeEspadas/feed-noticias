@@ -6,12 +6,11 @@ services:
     container_name: feed-noticias
     restart: always
     ports:
-      - "8501:8501"
+      - "8502:8501"
     environment:
       - GEMINI_API_KEY=AIzaSyCZkuWaXN2Br2DOHQwKzMaUA4V7hgUqXhQ
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.feed-noticias.rule=PathPrefix(`/`)"
-      - "traefik.http.routers.feed-noticias.entrypoints=web,websecure"
+      - "traefik.http.routers.feed-noticias.rule=Host(`feed-noticias.srv1817339.hstgr.cloud`) || PathPrefix(`/`)"
+      - "traefik.http.routers.feed-noticias.entrypoints=websecure,web"
       - "traefik.http.services.feed-noticias.loadbalancer.server.port=8501"
-
